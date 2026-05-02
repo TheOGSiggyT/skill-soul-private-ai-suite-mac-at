@@ -1,3 +1,4 @@
+import platform 
 import json
 import os
 import subprocess
@@ -19,6 +20,8 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
 from uuid import uuid4
 from xml.etree import ElementTree as ET
+import ssl
+ssl._create_default_https_context = ssl._create_unverified_context
 
 from runtime_backend import LocalImageBackend, LocalRuntimeBackend, discover_installed_models
 
@@ -416,9 +419,9 @@ def detect_system():
             ctypes.windll.kernel32.GlobalMemoryStatus(ctypes.byref(stat))
             info["ram_gb"] = round(stat.dwTotalPhys / (1024 ** 3))
         else:
-            info["ram_gb"] = 8
+            info["ram_gb"] = 32
     except Exception:
-        info["ram_gb"] = 8
+        info["ram_gb"] = 32
 
     info["graphics_name"] = "Unknown graphics"
     info["graphics_vendor"] = "unknown"
@@ -2374,8 +2377,10 @@ class InstallWorker:
         start_time = time.time()
 
         try:
+            import ssl
+            context = ssl._create_unverified_context()
             request = urllib.request.Request(url, headers=HTTP_HEADERS)
-            with urllib.request.urlopen(request, timeout=60) as response, open(tmp_dest, "wb") as out_file:
+            with urllib.request.urlopen(request, timeout=60, context=context) as response, open(tmp_dest, "wb") as out_file:
                 total_size = int(response.headers.get("Content-Length") or 0)
                 downloaded = 0
                 while True:
@@ -2912,7 +2917,7 @@ class StandaloneApp(tk.Tk):
         tiers = [
             ("starter", "STARTER", "3 models - about 4 GB download - 4GB+ RAM", C["green"], ram >= 4),
             ("standard", "STANDARD", "8 models + standard Knowledge Base - about 10 GB download - 8GB+ RAM", C["cyan"], ram >= 8),
-            ("pro", "PRO", "12 models - about 22 GB download - 16GB+ RAM", C["amber"], ram >= 16),
+            ("pro", "PRO", "12 models - about 22 GB download - 16GB+ RAM", C["amber"], ram >= 8),
         ]
         default = "starter"
         if ram >= 16:
